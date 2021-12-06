@@ -1,0 +1,6 @@
+# Typical junk
+.DS_Store
+__pycache__
+
+# Dataset zip
+*covid*.zip
