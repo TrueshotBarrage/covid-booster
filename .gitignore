@@ -4,7 +4,7 @@ __pycache__
 
 # Dataset & submission
 *covid*.zip
-predictions.csv
+predictions*.csv
 
 # Ignored for personal reasons
 gitignored

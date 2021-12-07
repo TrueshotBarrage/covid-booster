@@ -1,0 +1,23 @@
+Region  
+Population  
+Area
+Population Density
+Coastline
+Net Migration
+Infant Mortality
+GDP
+Literacy
+Phones
+Arable
+Crops
+Other
+Birthrate  
+Deathrate  
+Agriculture  
+Industry  
+Service  
+Handwashing Facilities
+Extreme Poverty
+Median Age
+Life Expectancy
+Human Development Index
