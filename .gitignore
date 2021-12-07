@@ -2,5 +2,9 @@
 .DS_Store
 __pycache__
 
-# Dataset zip
+# Dataset & submission
 *covid*.zip
+predictions.csv
+
+# Ignored for personal reasons
+gitignored

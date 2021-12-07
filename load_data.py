@@ -1,38 +1,59 @@
 import pickle
 import numpy as np
-
-import naive_bayes as nb
-
-# Load the COVID dataset into a dict
-file = open("covid_dataset.pkl", "rb")
-checkpoint = pickle.load(file)
-file.close()
-
-# Unpack the numpy arrays from the COVID dataset dict
-X_train, y_train = checkpoint["X_train"], checkpoint["y_train_log_pos_cases"]
-X_val, y_val = checkpoint["X_val"], checkpoint["y_val_log_pos_cases"]
-X_test = checkpoint["X_test"]
-
-# print(f"X_train: {X_train.shape}")
-# print(f"y_train: {y_train.shape}")
-# print(f"X_val: {X_val.shape}")
-# print(f"y_val: {y_val.shape}")
-# print(f"X_test: {X_test.shape}")
-
-# print(f"X_train[0]: {X_train[0]}")
-# print(f"y_train[0]: {y_train[0]}")
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
 
 
-def main():
-    w, b = nb.naivebayesCL(X_train, y_train, nb.naivebayesPXY_smoothing)
-    train_error = np.mean(nb.classifyLinear(X_train, w, b) != y_train)
-    test_error = np.mean(nb.classifyLinear(X_val, w, b) != y_val)
+def load_data(filename="covid_dataset.pkl"):
+    # Load the COVID dataset into a dict
+    file = open(filename, "rb")
+    checkpoint = pickle.load(file)
+    file.close()
 
-    print("Training error (Smoothing with Laplace estimate): %.2f%%" %
-          (100 * train_error))
-    print("Test error (Smoothing with Laplace estimate): %.2f%%" %
-          (100 * test_error))
+    # Unpack the numpy arrays from the COVID dataset dict
+    xTr, yTr = checkpoint["X_train"], checkpoint["y_train_log_pos_cases"]
+    xVal, yVal = checkpoint["X_val"], checkpoint["y_val_log_pos_cases"]
+    xTe = checkpoint["X_test"]
+
+    # Cast the numpy arrays into appropriate types
+    xTr, yTr, xVal, yVal, xTe = map(lambda arr: arr.astype("float"),
+                                    (xTr, yTr, xVal, yVal, xTe))
+
+    return xTr, yTr, xVal, yVal, xTe
 
 
-if __name__ == "__main__":
-    main()
+def prune(x, y=None, remove_rows=True):
+    """Prune input array(s) x (and y) to remove NaN values.
+
+    Args:
+        x (np.ndarray): n x d data array
+        y (np.ndarray): n x 1 label array, corresponding to x
+        remove_rows (bool): If true, remove rows with NaN values, instead of 
+        imputing them
+    
+    Returns:
+        x (np.ndarray): The original input data array x with treatment
+        [optional] y (np.ndarray): The original input label array y with 
+        treatment, if it was provided
+    """
+    if y is None:
+        xy = x
+    else:
+        xy = np.vstack((x.T, y.T)).T
+
+    nan_rows = np.isnan(xy).any(axis=1)
+
+    if remove_rows:
+        xy = xy[~nan_rows]
+        if y is None:
+            return xy
+        return xy.T[:-1].T, xy.T[-1].flatten()
+    else:
+        imp = IterativeImputer(max_iter=10, sample_posterior=True)
+        imp.fit(x)
+        x = imp.transform(x)
+        if y is None:
+            return x
+        return x, y
+
+    
