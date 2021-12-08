@@ -1,5 +1,15 @@
+import numpy as np
+from xgboost import XGBRegressor
+
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import RepeatedKFold
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import BaggingRegressor
+
 from sklearn.ensemble import AdaBoostRegressor
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
@@ -16,9 +26,11 @@ SVM = 4
 RIDGEREG = 5
 TREES = 6
 LASSOREG = 7
+GRADBOOST = 8
+XGBOOST = 9
 
 
-def train(xTr, yTr, algorithm):
+def train(xTr, yTr, algorithm, fit=True, bagging=True):
     """Train the model with labeled data. 
     Assumption: data is not invalid (e.g. no NaN values) and labels are correct.
 
@@ -26,6 +38,8 @@ def train(xTr, yTr, algorithm):
         xTr (np.ndarray): (n, d) input data array
         yTr (np.ndarray): (n,) input label array
         algorithm (enumerated int): The type of algorithm to train the model
+        fit (bool): If true, fit xTr and yTr to the algorithm model
+        bagging (bool): If true, use bagging
     
     Returns:
         Regressor: The trained regression model
@@ -40,16 +54,28 @@ def train(xTr, yTr, algorithm):
     elif algorithm == KNN:
         regr = KNeighborsRegressor(n_neighbors=5)
     elif algorithm == SVM:
-        regr = SVR(kernel="rbf", C=50, epsilon=0.01)
+        regr = SVR(kernel="rbf", C=8.7, epsilon=0.99)
     elif algorithm == RIDGEREG:
         regr = BayesianRidge()
     elif algorithm == TREES:
         regr = DecisionTreeRegressor(max_depth=10)
     elif algorithm == LASSOREG:
         regr = Lasso(alpha=0.1)
+    elif algorithm == GRADBOOST:
+        regr = GradientBoostingRegressor(n_estimators=200,
+                                         max_features=8,
+                                         max_depth=4,
+                                         learning_rate=0.0686648845)
+    elif algorithm == XGBOOST:
+        regr = XGBRegressor(n_estimators=150, max_depth=3, learning_rate=0.1)
 
+    if bagging:
+        regr = BaggingRegressor(base_estimator=regr,
+                                n_estimators=15,
+                                random_state=0)
     # Train the model with the data
-    regr.fit(xTr, yTr)
+    if fit:
+        regr.fit(xTr, yTr)
 
     return regr
 
@@ -81,9 +107,50 @@ def validate(xVal, yVal, model):
         model (Regressor): Regression model, trained with an ML algorithm
     
     Returns:
-        float: How well the model performs on the input data
+        float: Validation score R^2
+        float: Mean squared log error
     """
-    return model.score(xVal, yVal)
+
+    # val_score = model.score(xVal, yVal)
+    cv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
+    val_score = np.absolute(
+        cross_val_score(model,
+                        xVal,
+                        yVal,
+                        cv=cv,
+                        scoring="neg_mean_squared_error",
+                        n_jobs=-1)).mean()
+    rmsle = mean_squared_error(yVal, model.predict(xVal))
+    return val_score, rmsle
+
+
+def grid_search(x, y, model=XGBRegressor()):
+    # regr = GridSearchCV(estimator=model,
+    #              param_grid={
+    #                  "C": [1, 10],
+    #                  "epsilon": [0.1, 0.5],
+    #                  "kernel": ["rbf", "linear"]
+    #              })
+    # regr = GridSearchCV(
+    #     estimator=model,
+    #     param_grid={
+    #         # "C": np.linspace(1, 50, num=20),
+    #         # "epsilon": np.logspace(0.00001, 0.001, num=3),
+    #         # "kernel": ["rbf"]
+    #         "max_features": [4],
+    #         "max_depth": [4, 5],
+    #         "learning_rate": np.logspace(-1, -5, num=50)
+    #     })
+    regr = GridSearchCV(estimator=model,
+                        param_grid={
+                            "n_estimators": [100, 150, 200],
+                            "max_depth": [3, 4],
+                            "learning_rate": [0.1, 0.3, 0.5, 0.7]
+                        })
+
+    regr.fit(x, y)
+
+    return regr
 
 
 def predict(xTe, model):

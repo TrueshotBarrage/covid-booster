@@ -4,6 +4,8 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer, SimpleImputer, KNNImputer
 from sklearn.preprocessing import normalize as nm
 from sklearn.preprocessing import RobustScaler, StandardScaler
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
 
 
 def load_data(filename="covid_dataset.pkl"):
@@ -24,15 +26,26 @@ def load_data(filename="covid_dataset.pkl"):
     return xTr, yTr, xVal, yVal, xTe
 
 
-def drop_categorical(x):
+def drop_categorical(x, encode=False):
     """Drop categorical features from the data. In this case, the first col
 
     Args:
         x (np.ndarray): (n, d) data array
+        encode (bool): If True, encode the data using a one-hot encoder instead
     
     Returns:
         np.ndarray: The treated input data array
     """
+    # print(x[0])
+    # if encode:
+    #     ct = ColumnTransformer([
+    #         ("Region",
+    #          OneHotEncoder(categories=np.array(range(0, 11), dtype=float)), [0])
+    #     ],
+    #                            remainder="passthrough")
+    #     x = ct.fit_transform(x)
+    #     print(x[0])
+    #     return x
     return x[:, 1:]
 
 
@@ -72,7 +85,8 @@ def prune(x, y=None, remove_rows=True):
         return xy.T[:-1].T, xy.T[-1].flatten()
     else:
         # imp = IterativeImputer(max_iter=10, sample_posterior=True)
-        imp = SimpleImputer(strategy="mean")
+        # imp = SimpleImputer(strategy="mean")
+        imp = SimpleImputer(strategy="constant", fill_value=0)
         # imp = KNNImputer(n_neighbors=5, weights="distance")
         imp.fit(x)
         x = imp.transform(x)
@@ -94,5 +108,5 @@ def normalize(x):
     # ss = StandardScaler()
     # x = ss.fit_transform(x)  # Scaling makes it way worse, so for now # out
 
-    x = nm(x, axis=1, norm="max")  # L2 or max seem to work best
+    x = nm(x, axis=0, norm="max")  # L2 or max seem to work best
     return x
